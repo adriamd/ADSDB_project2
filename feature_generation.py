@@ -78,7 +78,8 @@ def numeric_imputation(df):
     df_num = pd.DataFrame(imp.fit_transform(df_num), columns=numeric_cols)
 
     for i in numeric_cols:
-        df.loc[:,i] = df_num.loc[:,i]
+        #df.loc[:,i] = df_num.loc[:,i]
+        df[i] = df_num[i].values
 
 def new_variables(df):
     df["N_baths"] = df["baths"].apply(np.floor)
