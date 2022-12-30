@@ -74,11 +74,19 @@ def numeric_imputation(df):
     numeric_cols = df_num.columns
 
     lr = LinearRegression()
-    imp = IterativeImputer(estimator=lr,missing_values=np.nan, max_iter=10, verbose=2, imputation_order='roman',random_state=0)
+    imp = IterativeImputer(estimator=lr,missing_values=np.nan, max_iter=10, imputation_order='roman',random_state=0)
     df_num = pd.DataFrame(imp.fit_transform(df_num), columns=numeric_cols)
 
     for i in numeric_cols:
         df.loc[:,i] = df_num.loc[:,i]
+
+def new_variables(df):
+    df["N_baths"] = df["baths"].apply(np.floor)
+    df["half_baths"] =  (df["baths"] - df["N_baths"]).apply(lambda x:"Yes" if 0 < x else "No") 
+    df["b_hospital_type_critical"] = df["hospital_type_critical"].apply(lambda x:"Yes" if 0 < x else "No")
+    df["b_hospital_type_longterm"] = df["hospital_type_longterm"].apply(lambda x:"Yes" if 0 < x else "No")
+    df["b_hospital_type_children"] = df["hospital_type_children"].apply(lambda x:"Yes" if 0 < x else "No")
+    df["b_type"] = df["type"].apply(lambda x:"Apartment" if "apartment" == x else "No-Apartment")
 
 def preprocessing(data, target, drop_features =[], skip_log=[], skip_outliers=[]):
 
@@ -98,8 +106,12 @@ def preprocessing(data, target, drop_features =[], skip_log=[], skip_outliers=[]
     
     numeric_imputation(df)
 
-    con.execute(f"CREATE TABLE {data}_preprocessed AS SELECT * FROM df")
+    new_variables(df)
+
+    con.execute(f"CREATE OR REPLACE TABLE {data}_preprocessed AS SELECT * FROM df")
     con.close()
+
+
 
 if __name__ == "__main__":
     preprocessing(data="sandbox", target="price",
