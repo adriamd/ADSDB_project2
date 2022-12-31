@@ -5,22 +5,15 @@ import matplotlib.pyplot as plt
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.linear_model import LinearRegression, RidgeCV, LassoCV
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import GridSearchCV
 from sklearn import metrics
 from datetime import datetime as dt
 import os
-from joblib import dump, load
+from joblib import dump
 import xgboost as xgb
 import json
 
-table = "sandbox_T_apartment_S_ga_fl_preprocessed"
-database = 'data/exploitation.db'
 
-# GET TABLE
-
-con = duckdb.connect(database, read_only=True)
-df = con.execute(f"select * from {table}").df()
-df.head()
-con.close()
 
 # ENCODING
 
@@ -201,6 +194,8 @@ def random_forest(X_train, y_train, X_test, y_test, save_plots=True):
         plt.savefig("output/"+model_name+"/feature_importance_top20.png")
         plt.clf()
 
+    return rf
+
 # XGBoost, without crossvalidation. Uses subsampling to avoid overfitting
 def xgboost_noCV(X_train, y_train, X_test, y_test, save_plots=True,
     params = {
@@ -246,15 +241,68 @@ def xgboost_noCV(X_train, y_train, X_test, y_test, save_plots=True,
             plt.clf()
         except:
             pass
+    
+    return xgb_1
+
+def xgboost_CV(X_train, y_train, X_test, y_test, save_plots=True, params = {
+        'learning_rate':[0.1, 0.3, 1],
+        'max_depth':[5, 7, 10],
+        'subsample':[0.8],
+        'reg_lambda':[0, 0.1, 1], # L2 reg
+        'alpha':[0, 0.1, 1], #L1 reg
+        'max_leaves':[10],
+        'n_estimators':[5, 10, 20]
+    }):
+
+    print("This may take a few minutes...")
+    model_name = "xgbcv_" + dt.now().strftime("%Y%m%d_%H%M%S")
+
+    data_train = xgb.DMatrix(X_train, label=y_train)
+    data_val = xgb.DMatrix(X_test, label=y_test)
+    xgbr = xgb.XGBRegressor(seed = 20, objective = 'reg:squarederror', verbosity = 1)
+
+    xgb_grid = GridSearchCV(estimator=xgbr, param_grid = params, cv = 3)
+    xgb_grid.fit(X_train, y_train)
+    # retrain with the best parameters:
+    xgb_cv = xgb.train(xgb_grid.best_params_, data_train, xgb_grid.best_params_['n_estimators'])
+    # prediction:
+    yhat_train_xgbcv = xgb_cv.predict(data_train)
+    yhat_val_xgbcv = xgb_cv.predict(data_val)
+
+    print("Metrics in train set:")
+    printMetrics(y_train, yhat_train_xgbcv)
+    print("Metrics in test set:")
+    printMetrics(y_test, yhat_val_xgbcv)
+
+    os.mkdir("output/"+model_name)
+    dump(xgb_grid, "output/"+model_name+"/xgb_grid.joblib")
+    dump(xgb_cv, "output/"+model_name+"/xgb_cv.joblib")
+    with open("output/"+model_name+"/grid_params.json", "w") as fp:
+        json.dump(params, fp)
+    with open("output/"+model_name+"/best_params.json", "w") as fp:
+        json.dump(xgb_grid.best_params_, fp)
+
+    if save_plots:
+        scatterplots(y_train, yhat_train_xgbcv, y_test, yhat_val_xgbcv, model_name)
+        xgb.plot_importance(xgb_cv, max_num_features = 20, height = 1)
+        fig = plt.gcf()
+        fig.savefig("output/"+model_name+"/feature_importance_top20.png")
+        plt.clf()
+        try:
+            xgb.plot_tree(xgb_cv, num_trees = 4, rankdir="LR")
+            fig = plt.gcf()
+            fig.savefig("output/"+model_name+"/tree.png")
+            plt.clf()
+        except:
+            pass
+
+    return xgb_cv
 
 
+if __name__ == "__main__":
+    table = "sandbox_T_apartment_S_ga_fl_preprocessed"
+    database = 'data/exploitation.db'
 
-
-
-
-
-
-def model_1():
     con = duckdb.connect(database, read_only=True)
     df = con.execute(f"select * from {table}").df()
     con.close()
@@ -266,11 +314,21 @@ def model_1():
     X_train, y_train, X_test, y_test = split_train_test(df_encoded)
     Xs_train, ys_train, Xs_test, ys_test = split_train_test(df_scaled)
 
+    x=1
+    while x != "0":
+        x = input("\nCreate model:\n[1] Linear regression\n[2] Ridge regression\n[3] Lasso regression\n[4] Random forest\n[5] XGB 1\n[6] XGB 2\n[0] Exit\n")
+        if x=="1":
+            linear_regression(X_train, y_train, X_test, y_test)
+        elif x=="2":
+            ridge_regression(Xs_train, ys_train, Xs_test, ys_test)
+        elif x=="3":
+            lasso_regression(Xs_train, ys_train, Xs_test, ys_test)
+        elif x=="4":
+            random_forest(X_train, y_train, X_test, y_test)
+        elif x=="5":
+            xgboost_noCV(X_train, y_train, X_test, y_test)
+        elif x=="6":
+            xgboost_CV(X_train, y_train, X_test, y_test)
 
-        """{'alpha': 0,
- 'learning_rate': 0.3,
- 'max_depth': 10,
- 'max_leaves': 10,
- 'n_estimators': 20,
- 'reg_lambda': 0,
- 'subsample': 0.8}"""
+
+    
