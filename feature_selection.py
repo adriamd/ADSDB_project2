@@ -83,6 +83,7 @@ def feature_cife(df,target):
     name_columns = list(df.drop(target, axis=1).columns)
 
     (best_cife,_,_) = cife(X, y)
+    print(best_cife)
 
     return [name_columns[i] for i in best_cife]
 
@@ -109,9 +110,9 @@ if __name__ == "__main__":
     con.close()
     
     df_encoded = encode(df, scale=False)
-    df_sample = df_encoded.sample(round(len(df)*0.1), random_state=777)
+    df_sample = df_encoded.sample(round(len(df)*0.05), random_state=777)
     
-    columns = feature_cife(df_sample,target)
+    columns = feature_selection_random_forest(df_sample,target)
     columns.append(target)
     
     df_reduced = df_encoded[columns]
