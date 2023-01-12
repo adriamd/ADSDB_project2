@@ -309,13 +309,40 @@ def best_model(table, database_path = 'data/exploitation.db'):
     X_train, y_train, X_test, y_test = split_train_test(df_encoded)
     random_forest(X_train, y_train, X_test, y_test)
 
+def show_all_models(table, database_path = 'data/exploitation.db'):
+    con = duckdb.connect(database_path, read_only=True)
+    df = con.execute(f"select * from {table}").df()
+    con.close()
+
+    df_encoded = encode(df, scale=False)
+    df_scaled, scale_params = encode(df, scale=True)
+    # save the scale params in a file?
+
+    X_train, y_train, X_test, y_test = split_train_test(df_encoded)
+    Xs_train, ys_train, Xs_test, ys_test = split_train_test(df_scaled)
+
+    x=1
+    while x != "0":
+        x = input("\nCreate model:\n[1] Linear regression\n[2] Ridge regression\n[3] Lasso regression\n[4] Random forest\n[5] XGB 1\n[6] XGB 2\n[0] Exit\n")
+        if x=="1":
+            linear_regression(X_train, y_train, X_test, y_test)
+        elif x=="2":
+            ridge_regression(Xs_train, ys_train, Xs_test, ys_test)
+        elif x=="3":
+            lasso_regression(Xs_train, ys_train, Xs_test, ys_test)
+        elif x=="4":
+            random_forest(X_train, y_train, X_test, y_test)
+        elif x=="5":
+            xgboost_noCV(X_train, y_train, X_test, y_test)
+        elif x=="6":
+            xgboost_CV(X_train, y_train, X_test, y_test)
 
 
 if __name__ == "__main__":
     if os.getcwd().replace("\\", "/").split("/")[-1] in ["notebooks", "scripts"]:
         os.chdir("..")
 
-    table = "sandbox_T_apartment_S_ga_fl_preprocessed"
+    table = "sandbox_T_apartment_S_ca_preprocessed"
     database = 'data/exploitation.db'
 
     con = duckdb.connect(database, read_only=True)
