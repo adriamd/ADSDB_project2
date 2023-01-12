@@ -115,7 +115,7 @@ def preprocessing(data, target, drop_features =[], skip_log=[], skip_outliers=[]
 
 
 if __name__ == "__main__":
-    preprocessing(data="sandbox", target="price",
+    preprocessing(data="sandbox_T_apartment_S_ca", target="price",
                     drop_features =["id", "url", "region_url", "image_url", "description"],
                     skip_log=["beds","baths","lat","long"],
                     skip_outliers=["lat","long"])
