@@ -12,7 +12,7 @@ sandbox_generator_help()
 
 sandboxName = createSandbox(
     types=["apartment"],
-    states=["ga", "fl"], # exemple random per provar, ja veurem que pillar al sandbox
+    states=["ca"],
     database_path='data/exploitation.db'
 )
 
