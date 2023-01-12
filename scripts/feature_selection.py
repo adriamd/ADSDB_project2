@@ -1,34 +1,10 @@
 import duckdb
 import pandas as pd
 import numpy as np
-from scripts.sandbox_generator import createSandbox
-from time import time
 
-import duckdb
-import json
-import os
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-import numpy as np
-import math
-
-import duckdb
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
-from sklearn.linear_model import LinearRegression, RidgeCV, LassoCV
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import GridSearchCV
-from sklearn import metrics
-from datetime import datetime as dt
-import os
-from joblib import dump
-import json
 
-from sklearn.feature_selection import SelectFromModel
-from sklearn.ensemble import RandomForestRegressor
 
 from skfeature.function.information_theoretical_based.CIFE import cife
 # ENCODING
@@ -83,6 +59,7 @@ def feature_cife(df,target):
     name_columns = list(df.drop(target, axis=1).columns)
 
     (best_cife,_,_) = cife(X, y)
+    print(best_cife)
 
     return [name_columns[i] for i in best_cife]
 
@@ -109,9 +86,9 @@ if __name__ == "__main__":
     con.close()
     
     df_encoded = encode(df, scale=False)
-    df_sample = df_encoded.sample(round(len(df)*0.1), random_state=777)
+    df_sample = df_encoded.sample(round(len(df)*0.05), random_state=777)
     
-    columns = feature_cife(df_sample,target)
+    columns = feature_selection_random_forest(df_sample,target)
     columns.append(target)
     
     df_reduced = df_encoded[columns]
