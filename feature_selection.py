@@ -30,6 +30,7 @@ import json
 from sklearn.feature_selection import SelectFromModel
 from sklearn.ensemble import RandomForestRegressor
 
+from skfeature.function.information_theoretical_based.CIFE import cife
 # ENCODING
 
 def encode(df, scale=False):
@@ -54,7 +55,7 @@ def encode(df, scale=False):
     for i in range(len(x_cols_onehot)):
         col = x_cols_onehot[i]
         for name in enc.categories_[i]:
-            cols_encoded.append(str(col+'_'+name[0:].strip()).lower().strip())
+            cols_encoded.append(str(col+' '+name[0:].strip()).lower().strip())
     df_onehot_encoded = pd.DataFrame(enc.transform(df[x_cols_onehot]).toarray(), columns = cols_encoded)
 
     if scale:
@@ -73,6 +74,17 @@ def encode(df, scale=False):
         df[x_cols_binary], df_onehot_encoded, df[x_cols_numeric], df[[y_col]]
     ], axis = 1
     )
+
+def feature_cife(df,target):
+
+    X = df.drop(target, axis=1).to_numpy()
+    y = df[target].to_numpy()
+
+    name_columns = list(df.drop(target, axis=1).columns)
+
+    (best_cife,_,_) = cife(X, y)
+
+    return [name_columns[i] for i in best_cife]
 
 
 def feature_selection_random_forest(df,target):
@@ -99,12 +111,11 @@ if __name__ == "__main__":
     df_encoded = encode(df, scale=False)
     df_sample = df_encoded.sample(round(len(df)*0.1), random_state=777)
     
-
-
-    columns = feature_selection_random_forest(df_sample,target)
+    columns = feature_cife(df_sample,target)
     columns.append(target)
-
-    df_reduced = df[columns]
+    
+    df_reduced = df_encoded[columns]
     con = duckdb.connect(database, read_only=False)
-    con.execute(f"CREATE OR REPLACE TABLE {table}_reduced AS SELECT * FROM df_reduced")
+    out_table = table[:-13]
+    con.execute(f"CREATE OR REPLACE TABLE {out_table}_reduced AS SELECT * FROM df_reduced")
     con.close()
