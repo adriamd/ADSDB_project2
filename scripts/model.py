@@ -298,8 +298,23 @@ def xgboost_CV(X_train, y_train, X_test, y_test, save_plots=True, params = {
 
     return xgb_cv
 
+def best_model(table, database_path = 'data/exploitation.db'):
+    print("Running random forest:")
+
+    con = duckdb.connect(database_path, read_only=True)
+    df = con.execute(f"select * from {table}").df()
+    con.close()
+
+    df_encoded = encode(df, scale=False)
+    X_train, y_train, X_test, y_test = split_train_test(df_encoded)
+    random_forest(X_train, y_train, X_test, y_test)
+
+
 
 if __name__ == "__main__":
+    if os.getcwd().replace("\\", "/").split("/")[-1] in ["notebooks", "scripts"]:
+        os.chdir("..")
+
     table = "sandbox_T_apartment_S_ga_fl_preprocessed"
     database = 'data/exploitation.db'
 

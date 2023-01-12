@@ -1,4 +1,5 @@
 import duckdb
+import os
 
 # this function creates an analytical sandbox,
 # consisting in filtering some house types and/or states
@@ -75,4 +76,6 @@ def sandbox_generator_help(col="all") :
 
 
 if __name__ == "__main__":
+    if os.getcwd().replace("\\", "/").split("/")[-1] in ["notebooks", "scripts"]:
+        os.chdir("..")
     createSandbox("apartment", "ca")
