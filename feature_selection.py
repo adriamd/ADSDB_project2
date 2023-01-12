@@ -1,7 +1,7 @@
 import duckdb
 import pandas as pd
 import numpy as np
-from sandbox_generator import createSandbox
+from scripts.sandbox_generator import createSandbox
 from time import time
 
 import duckdb

@@ -1,10 +1,13 @@
+import os
 import duckdb
 import pandas as pd
 import numpy as np
-from sandbox_generator import createSandbox
+try:
+    from sandbox_generator import createSandbox
+except:
+    from scripts.sandbox_generator import createSandbox
 import duckdb
 import json
-import os
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -115,6 +118,9 @@ def preprocessing(data, target, drop_features =[], skip_log=[], skip_outliers=[]
 
 
 if __name__ == "__main__":
+    if os.getcwd().replace("\\", "/").split("/")[-1] in ["notebooks", "scripts"]:
+        os.chdir("..")
+
     preprocessing(data="sandbox_T_apartment_S_ca", target="price",
                     drop_features =["id", "url", "region_url", "image_url", "description"],
                     skip_log=["beds","baths","lat","long"],

@@ -1,6 +1,6 @@
-from sandbox_generator import *
-from feature_generation import *
-#from model import *
+from scripts.sandbox_generator import *
+from scripts.feature_generation import *
+from scripts.model import *
 
 import duckdb
 
@@ -8,7 +8,7 @@ con = duckdb.connect('data/exploitation.db', read_only=True)
 con.execute("show tables").df()
 con.close()
 
-sandbox_generator_help()
+# sandbox_generator_help()
 
 sandboxName = createSandbox(
     types=["apartment"],
@@ -23,7 +23,8 @@ preprocessing(
     skip_log=["beds","baths","lat","long"],
     skip_outliers=["lat","long"]
 )
+tablename = sandboxName + "_preprocessed"
 
-
-# models()
+best_model(tablename)
+print("Check folder 'output' for the plots of the model")
 
