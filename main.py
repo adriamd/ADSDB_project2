@@ -23,8 +23,7 @@ preprocessing(
     skip_log=["beds","baths","lat","long"],
     skip_outliers=["lat","long"]
 )
-tablename = sandboxName + "_preprocessed"
 
-best_model(tablename)
+best_model(sandboxName)
 print("Check folder 'output' for the plots of the model")
 

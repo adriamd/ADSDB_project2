@@ -232,32 +232,30 @@ def xgboost_CV(X_train, y_train, X_test, y_test, save_plots=True, params = {
 
     return xgb_cv
 
+def get_datasets(tablename, scale_numeric = False, database_path = 'data/exploitation.db'):
+    # return the datasets (Xtrain, ytrain, X test, y test) given the tablename
+    con = duckdb.connect(database_path, read_only=True)
+    s = 's' if scale_numeric else ''
+    X_train = con.execute(f"select * from {tablename}_X{s}_train_processed").df()
+    y_train = con.execute(f"select * from {tablename}_y{s}_train_processed").df()
+    X_test = con.execute(f"select * from {tablename}_X{s}_test_processed").df()
+    y_test = con.execute(f"select * from {tablename}_y{s}_test_processed").df()
+    con.close()
+    return [X_train, y_train, X_test, y_test]
+
+
 def best_model(table, database_path = 'data/exploitation.db'):
     print("Running random forest:")
-
-    con = duckdb.connect(database_path, read_only=True)
-    df = con.execute(f"select * from {table}").df()
-    con.close()
-
-    df_encoded = encode(df, scale=False)
-    X_train, y_train, X_test, y_test = split_train_test(df_encoded)
+    X_train, y_train, X_test, y_test = get_datasets(table, database_path=database_path)
     random_forest(X_train, y_train, X_test, y_test)
 
 def show_all_models(table, database_path = 'data/exploitation.db'):
-    con = duckdb.connect(database_path, read_only=True)
-    df = con.execute(f"select * from {table}").df()
-    con.close()
-
-    df_encoded = encode(df, scale=False)
-    df_scaled, scale_params = encode(df, scale=True)
-    # save the scale params in a file?
-
-    X_train, y_train, X_test, y_test = split_train_test(df_encoded)
-    Xs_train, ys_train, Xs_test, ys_test = split_train_test(df_scaled)
+    X_train, y_train, X_test, y_test = get_datasets(table, scale_numeric=False, database_path=database_path)
+    Xs_train, ys_train, Xs_test, ys_test = get_datasets(table, scale_numeric=True, database_path=database_path)
 
     x=1
     while x != "0":
-        x = input("\nCreate model:\n[1] Linear regression\n[2] Ridge regression\n[3] Lasso regression\n[4] Random forest\n[5] XGB 1\n[6] XGB 2\n[0] Exit\n")
+        x = input("\nCreate model:\n[1] Linear regression\n[2] Ridge regression\n[3] Lasso regression\n[4] Random forest\n[5] XGB\n[6] XGB with cv\n[0] Exit\n")
         if x=="1":
             linear_regression(X_train, y_train, X_test, y_test)
         elif x=="2":
@@ -279,33 +277,4 @@ if __name__ == "__main__":
     table = "sandbox_T_apartment_S_ca"
     database = 'data/exploitation.db'
 
-    con = duckdb.connect(database, read_only=True)
-    X_train = con.execute(f"select * from {table}_X_train_processed").df()
-    y_train = con.execute(f"select * from {table}_y_train_processed").df()
-    X_test = con.execute(f"select * from {table}_X_test_processed").df()
-    y_test = con.execute(f"select * from {table}_y_test_processed").df()
-
-    Xs_train = con.execute(f"select * from {table}_Xs_train_processed").df()
-    ys_train = con.execute(f"select * from {table}_ys_train_processed").df()
-    Xs_test = con.execute(f"select * from {table}_Xs_test_processed").df()
-    ys_test = con.execute(f"select * from {table}_ys_test_processed").df()
-
-    con.close()
-
-
-    x=1
-    while x != "0":
-        x = input("\nCreate model:\n[1] Linear regression\n[2] Ridge regression\n[3] Lasso regression\n[4] Random forest\n[5] XGB 1\n[6] XGB 2\n[0] Exit\n")
-        if x=="1":
-            linear_regression(X_train, y_train, X_test, y_test)
-        elif x=="2":
-            ridge_regression(Xs_train, ys_train, Xs_test, ys_test)
-        elif x=="3":
-            lasso_regression(Xs_train, ys_train, Xs_test, ys_test)
-        elif x=="4":
-            random_forest(X_train, y_train, X_test, y_test)
-        elif x=="5":
-            xgboost_noCV(X_train, y_train, X_test, y_test)
-        elif x=="6":
-            xgboost_CV(X_train, y_train, X_test, y_test)
-    
+    show_all_models(table, database)

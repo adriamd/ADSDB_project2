@@ -97,24 +97,6 @@ def new_variables(df):
     df["b_type"] = df["type"].apply(lambda x:"Apartment" if "apartment" == x else "No-Apartment")
 
     return df
-
-def preprocessing(df, target, skip_log=[], skip_outliers=[]):
-
-    df = df.dropna(subset=[target])
-
-    (num_var, cat_var) = column_types(df)
-
-    num_cols = set(num_var) - set(skip_log)
-    log_transformation(df,cols=num_cols)
-
-    num_cols = set(num_var) - set(skip_outliers)
-    clean_outliers(df,cols=num_cols)
-    
-    df = numeric_imputation(df)
-
-    df = new_variables(df)
-
-    return df
     
 # ENCODING
 def encode(df, scale=False):
@@ -178,29 +160,31 @@ def split_train_test(dff, size_train = 0.7, random_seed=777, y_col='price'):
         df_test[y_col] # y test
     ]
 
+def preprocessing(data, target, drop_features = [], skip_log=[], skip_outliers=[]):
 
-if __name__ == "__main__":
-    if os.getcwd().replace("\\", "/").split("/")[-1] in ["notebooks", "scripts"]:
-        os.chdir("..")
-
-    data = "sandbox_T_apartment_S_ca"
     con = duckdb.connect('data/exploitation.db', read_only=False)
     df = con.execute(f"select * from {data}").df()
-    df = df.drop(["id", "url", "region_url", "image_url", "description"], axis=1)
+    df = df.drop(drop_features, axis=1)
 
-    df = preprocessing(df, target="price",
-                    skip_log=["beds","baths","lat","long"],
-                    skip_outliers=["lat","long"])
+    df = df.dropna(subset=[target])
+
+    (num_var, cat_var) = column_types(df)
+
+    num_cols = set(num_var) - set(skip_log)
+    log_transformation(df,cols=num_cols)
+
+    num_cols = set(num_var) - set(skip_outliers)
+    clean_outliers(df,cols=num_cols)
+    
+    df = numeric_imputation(df)
+
+    df = new_variables(df)
 
     df_encoded = encode(df, scale=False)
-    
     df_scaled, scale_params = encode(df, scale=True)
-    # save the scale params in a file?
-    
     X_train, y_train, X_test, y_test = split_train_test(df_encoded)
     Xs_train, ys_train, Xs_test, ys_test = split_train_test(df_scaled)
 
-    print(type(y_train))
     y_train = y_train.to_frame()
     y_test = y_test.to_frame()
     ys_train = ys_train.to_frame()
@@ -210,13 +194,26 @@ if __name__ == "__main__":
     con.execute(f"CREATE OR REPLACE TABLE {data}_y_train_processed AS SELECT * FROM y_train")
     con.execute(f"CREATE OR REPLACE TABLE {data}_X_test_processed AS SELECT * FROM X_test")
     con.execute(f"CREATE OR REPLACE TABLE {data}_y_test_processed AS SELECT * FROM y_test")
-
     con.execute(f"CREATE OR REPLACE TABLE {data}_Xs_train_processed AS SELECT * FROM Xs_train")
     con.execute(f"CREATE OR REPLACE TABLE {data}_ys_train_processed AS SELECT * FROM ys_train")
     con.execute(f"CREATE OR REPLACE TABLE {data}_Xs_test_processed AS SELECT * FROM Xs_test")
     con.execute(f"CREATE OR REPLACE TABLE {data}_ys_test_processed AS SELECT * FROM ys_test")
+
     con.close()
+
+    return df
+
+
+if __name__ == "__main__":
+    if os.getcwd().replace("\\", "/").split("/")[-1] in ["notebooks", "scripts"]:
+        os.chdir("..")
+
+    data = "sandbox_T_apartment_S_ca"
     
+    df = preprocessing(data, target="price",
+                    drop_features=["id", "url", "region_url", "image_url", "description"],
+                    skip_log=["beds","baths","lat","long"],
+                    skip_outliers=["lat","long"])
 
     
 
