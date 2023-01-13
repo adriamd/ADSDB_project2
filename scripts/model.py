@@ -2,7 +2,6 @@ import duckdb
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.linear_model import LinearRegression, RidgeCV, LassoCV
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import GridSearchCV
@@ -12,71 +11,6 @@ import os
 from joblib import dump
 import xgboost as xgb
 import json
-
-
-
-# ENCODING
-
-def encode(df, scale=False):
-    # select columns
-    y_col = 'price'
-    exclude_cols = ['region']
-    x_cols_onehot = ['type', 'state', 'laundry_options', 'parking_options']
-    x_cols_binary = ['cats_allowed', 'dogs_allowed', 'smoking_allowed', 'wheelchair_access', 'electric_vehicle_charge', 'comes_furnished', 'half_baths'] + [
-        c for c in df.columns if c[0:2]=='b_'
-    ]
-    x_cols_numeric = [c for c in df.columns if not c in [y_col] + exclude_cols + x_cols_onehot + x_cols_binary]
-
-    # binary to numeric
-    bin2num = lambda x: 1 if x=='Yes' or x==1 or x=="Apartment" else 0
-    for col in x_cols_binary:
-        df[col] = df[col].apply(bin2num)
-
-    # one-hot encoding in categorical variables
-    enc = OneHotEncoder(handle_unknown='ignore')
-    enc.fit(df[x_cols_onehot])
-    cols_encoded = []
-    for i in range(len(x_cols_onehot)):
-        col = x_cols_onehot[i]
-        for name in enc.categories_[i]:
-            cols_encoded.append(str(col+'_'+name[0:].strip()).lower().strip())
-    df_onehot_encoded = pd.DataFrame(enc.transform(df[x_cols_onehot]).toarray(), columns = cols_encoded)
-
-    if scale:
-        # scaling numerical variables:
-        scaler = StandardScaler()
-        df_scaled_num = pd.DataFrame(scaler.fit_transform(df[x_cols_numeric]), columns = x_cols_numeric)
-
-        # dataset with encoding + scaling
-        return [
-            pd.concat(objs=[df[x_cols_binary], df_onehot_encoded, df_scaled_num, df[[y_col]]], axis = 1), 
-            {'names':scaler.feature_names_in_, 'means':scaler.mean_, 'scales':scaler.scale_}
-        ]
-
-    # dataset with encoding categorical columns to numeric
-    return pd.concat(objs=[
-        df[x_cols_binary], df_onehot_encoded, df[x_cols_numeric], df[[y_col]]
-    ], axis = 1
-    )
-
-def split_train_test(dff, size_train = 0.7, random_seed=777, y_col='price'):
-    # split into 3 subsets
-    # df_train, df_val, df_test = np.split(
-    #     dff.sample(frac=1, random_state=random_seed),
-    #     [ int(0.6*len(dff)) , int(0.8*len(dff)) ]
-    # )
-
-    # split into 2 subsets
-    df_train, df_test = np.split(
-        dff.sample(frac=1, random_state=random_seed), [ int(size_train*len(dff)) ]
-    )
-
-    return [
-        df_train.drop(y_col, axis=1), # X train
-        df_train[y_col], # y train
-        df_test.drop(y_col, axis=1), # X test
-        df_test[y_col] # y test
-    ]
 
 # ONE FUNCTION FOR EACH ALGORITHM
 
@@ -342,19 +276,22 @@ if __name__ == "__main__":
     if os.getcwd().replace("\\", "/").split("/")[-1] in ["notebooks", "scripts"]:
         os.chdir("..")
 
-    table = "sandbox_T_apartment_S_ca_preprocessed"
+    table = "sandbox_T_apartment_S_ca"
     database = 'data/exploitation.db'
 
     con = duckdb.connect(database, read_only=True)
-    df = con.execute(f"select * from {table}").df()
+    X_train = con.execute(f"select * from {table}_X_train_processed").df()
+    y_train = con.execute(f"select * from {table}_y_train_processed").df()
+    X_test = con.execute(f"select * from {table}_X_test_processed").df()
+    y_test = con.execute(f"select * from {table}_y_test_processed").df()
+
+    Xs_train = con.execute(f"select * from {table}_Xs_train_processed").df()
+    ys_train = con.execute(f"select * from {table}_ys_train_processed").df()
+    Xs_test = con.execute(f"select * from {table}_Xs_test_processed").df()
+    ys_test = con.execute(f"select * from {table}_ys_test_processed").df()
+
     con.close()
 
-    df_encoded = encode(df, scale=False)
-    df_scaled, scale_params = encode(df, scale=True)
-    # save the scale params in a file?
-
-    X_train, y_train, X_test, y_test = split_train_test(df_encoded)
-    Xs_train, ys_train, Xs_test, ys_test = split_train_test(df_scaled)
 
     x=1
     while x != "0":
@@ -371,6 +308,4 @@ if __name__ == "__main__":
             xgboost_noCV(X_train, y_train, X_test, y_test)
         elif x=="6":
             xgboost_CV(X_train, y_train, X_test, y_test)
-
-
     
